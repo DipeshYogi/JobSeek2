@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import psycopg2
-from api.serializers import recomm_serializer
+from api.serializers import RecommSerializer, GetConnSerializer
 from rest_framework import status
 from rest_framework.renderers import JSONRenderer
 
@@ -30,18 +30,26 @@ except (Exception, psycopg2.Error) as error:
 
 
 class GetConn(APIView):
+    """get all jobs posted by the user"""
+    serializer_class = GetConnSerializer
 
     def get(self,request):
-        cursor.execute('Select * from portal_jobs where owner_id=1')
-        rec = cursor.fetchall()
-        cursor.execute('select username from auth_user where id=1')
-        usr_name = cursor.fetchone()
+        u1 = self.serializer_class(data=request.data)
+        if u1.is_valid():
+            u1 = u1.validated_data.get('u1')
 
-        return Response ({'user':usr_name,'Jobs posted':rec})
+            cursor.execute('Select * from portal_jobs where owner_id = %s', (u1,))
+            rec = cursor.fetchall()
+            cursor.execute('select username from auth_user where id= %s', (u1,))
+            usr_name = cursor.fetchone()
+
+            return Response ({'user':usr_name,'Jobs posted':rec})
+        else:
+            return Response(u1.errors, status = status.HTTP_400_BAD_REQUEST)
 
 class GetRecomm(APIView):
     """Get recommendation for a Profile"""
-    serializer_class = recomm_serializer
+    serializer_class = RecommSerializer
     renderer_classes = [JSONRenderer]
 
     def get(self,request):

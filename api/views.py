@@ -5,28 +5,11 @@ import psycopg2
 from api.serializers import RecommSerializer, GetConnSerializer
 from rest_framework import status
 from rest_framework.renderers import JSONRenderer
-
+from api.Conn.get_conn import GetConnection
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import linear_kernel,cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
-
-
-try:
-    conn = psycopg2.connect(   user='lvdbzgnnnthckg',
-                                    password= '7ef0652e2f717ff49f5369871183b2dcdd15d9c52a7c55fcef98779d410dcb10',
-                                    host = 'ec2-184-72-237-95.compute-1.amazonaws.com',
-                                    port = '5432',
-                                    database = 'd32b9rckhe5166',
-
-                                    )
-
-    cursor = conn.cursor()
-    print ('Connected')
-
-
-except (Exception, psycopg2.Error) as error:
-                    print ("error while connecting to postgres")
 
 
 class GetConn(APIView):
@@ -37,15 +20,17 @@ class GetConn(APIView):
         u1 = self.serializer_class(data=request.data)
         if u1.is_valid():
             u1 = u1.validated_data.get('u1')
-
-            cursor.execute('Select * from portal_jobs where owner_id = %s', (u1,))
-            rec = cursor.fetchall()
-            cursor.execute('select username from auth_user where id= %s', (u1,))
-            usr_name = cursor.fetchone()
+            cur = GetConnection()
+            cur = cur.obtain_conn()
+            cur.execute('Select * from portal_jobs where owner_id = %s', (u1,))
+            rec = cur.fetchall()
+            cur.execute('select username from auth_user where id= %s', (u1,))
+            usr_name = cur.fetchone()
 
             return Response ({'user':usr_name,'Jobs posted':rec})
         else:
             return Response(u1.errors, status = status.HTTP_400_BAD_REQUEST)
+
 
 class GetRecomm(APIView):
     """Get recommendation for a Profile"""
@@ -56,16 +41,17 @@ class GetRecomm(APIView):
         n1 = self.serializer_class(data=request.data)
         if n1.is_valid():
             n1 = n1.validated_data.get('n1')
-
-            cursor.execute('select p_skills, s_skills, img, exp from  users_profile where user_id = %s', (n1,))
-            rec = cursor.fetchall()
+            cur = GetConnection()
+            cur = cur.obtain_conn()
+            cur.execute('select p_skills, s_skills, img, exp from  users_profile where user_id = %s', (n1,))
+            rec = cur.fetchall()
 
             rec = pd.DataFrame(rec, columns=['p_skills','s_skills','img','exp'])
             rec['id'] = n1
 
 
-            cursor.execute('select id, title, req_skills, exp from portal_jobs where owner_id <> %s', (n1,))
-            jobs = cursor.fetchall()
+            cur.execute('select id, title, req_skills, exp from portal_jobs where owner_id <> %s', (n1,))
+            jobs = cur.fetchall()
             jobs = pd.DataFrame(jobs, columns=['id', 'title', 'req_skills', 'exp'])
 
             users_dta = rec['p_skills']+ ' '+rec['s_skills']
@@ -88,11 +74,11 @@ class GetRecomm(APIView):
             req1_score = tuple(req1_score)
             #print(req1_score)
 
-            cursor.execute('select * from portal_jobs where id in %s',(req1_score,))
-            recomm_jobs = cursor.fetchall()
+            cur.execute('select * from portal_jobs where id in %s',(req1_score,))
+            recomm_jobs = cur.fetchall()
 
-            cursor.execute('select username from auth_user where id = %s', (n1,))
-            name = cursor.fetchall()
+            cur.execute('select username from auth_user where id = %s', (n1,))
+            name = cur.fetchall()
 
             return Response(recomm_jobs)
         else:

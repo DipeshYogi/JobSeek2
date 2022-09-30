@@ -9,7 +9,7 @@ django-storages==1.7.2
 docutils==0.15.2
 gunicorn==19.9.0
 jmespath==0.9.4
-joblib==0.13.2
+joblib==1.2.0
 
 numpy==1.17.2
 pandas==0.25.1
